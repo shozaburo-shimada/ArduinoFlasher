@@ -12,9 +12,6 @@ ArduinoFlasher makes below 4 processes into one process via command line (not Ar
 - Windows 10
 - python 2.7/3.3
 
-# Folder Structure
-
-
 # How to Use
 
 ## Preparation
