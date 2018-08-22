@@ -24,7 +24,9 @@ Prepare(or make) Arduino ISP and Connect following diagram.
 ### Python Library
 - install "intelhex" via pip
 
+```
 $ pip install intelhex
+```
 
 ### Folder Struction
 
@@ -40,11 +42,17 @@ ParentFolder<br>
 ## Command
 - Option
 
--p : COM port number to Arduino ISP
+-p : COM port number to Arduino ISP<br>
 -b : set fuse bit<br>
 -u <max 6byte, hex>: write 6byte unique id to EEPROM<br>
 -f <sketch name>: flash sketch w/ arduino bootloader<br>
 
-- For example
+- For example, move flasher folder using "cd" and then...
 
+```
+# Move flasher folder
+$ cd <xxx>/ArduinoFlasher
+
+# Execute flasher script
 $ sh flasher_win.sh -p 4 -b -u AA11BB22CC33 -f SketchA
+```
