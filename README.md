@@ -42,10 +42,10 @@ ParentFolder<br>
 ## Command
 - Option
 
--p : COM port number to Arduino ISP<br>
+-p \<port number>: COM port number to Arduino ISP<br>
 -b : set fuse bit<br>
 -u <max 6byte, hex>: write 6byte unique id to EEPROM<br>
--f <sketch name>: flash sketch w/ arduino bootloader<br>
+-f \<sketch name>: flash sketch w/ arduino bootloader<br>
 
 - For example, move flasher folder using "cd" and then...
 
