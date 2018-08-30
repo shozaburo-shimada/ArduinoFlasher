@@ -4,6 +4,7 @@ DIR_ARDUINO="C:\PROGRA~2\Arduino"
 DIR_USER=${USERPROFILE}\\Documents\\Arduino
 DIR_USER2=${USERPROFILE}\\AppData\\Local\\Arduino15\\packages
 DIR_CURRENT=${PWD}
+DIR_ARDUINO_BIN=${DIR_ARDUINO}\\hardware\\tools\\avr\\bin
 
 DIR_HARDWARE1=${DIR_ARDUINO}\\hardware
 DIR_HARDWARE2=${DIR_USER}\\hardware
@@ -38,6 +39,7 @@ if [ -e "${DIR_TOOLS3}" ]; then
     TOOLS=${TOOLS}" -tools "${DIR_TOOLS3}
 fi
 
+export PATH="${DIR_ARDUINO_BIN}:${DIR_ARDUINO}:$PATH"
 
 
 
@@ -80,6 +82,10 @@ while(( $# > 0 )); do
             #Fuse bit, Lock bit etc.
             flg_fuse=1
             ;;
+          'r')
+            #Recompile
+            flg_recompile=1
+            ;;
           'f')
             #firmware
             fw_file=("$2")
@@ -115,7 +121,7 @@ fi
 
 if [ -n "$flg_fuse" ]; then
   echo "Write Fuse bit etc."
-  avrdude -C ${DIR_USER2}/arduino/tools/avrdude/6.3.0-arduino9/etc/avrdude.conf -v -p atmega328p -c stk500v1 -P COM${com} -b 19200 -e -Ulock:w:0x3F:m -Uefuse:w:0xFD:m -Uhfuse:w:0xDA:m -Ulfuse:w:0xFF:m
+  avrdude -C ${DIR_USER2}/arduino/tools/avrdude/6.3.0-arduino9/etc/avrdude.conf -v -p atmega328p -c stk500v1 -P COM${com} -b 19200 -e -Ulock:w:0x3F:m -Uefuse:w:0xFD:m -Uhfuse:w:0xD2:m -Ulfuse:w:0xFF:m
 
 fi
 
@@ -126,20 +132,40 @@ if [ -n "$uid" ]; then
   # Flash unique id to EEPROM
   avrdude -C ${DIR_USER2}/arduino/tools/avrdude/6.3.0-arduino9/etc/avrdude.conf -v -p atmega328p -c stk500v1 -P COM${com} -b 19200 -U eeprom:w:eeprom.hex:i
   # Verify
+  #echo "Verify the UNIQUE ID."
   #avrdude -C ${DIR_USER2}/arduino/tools/avrdude/6.3.0-arduino9/etc/avrdude.conf -v -p atmega328p -c stk500v1 -P COM${com} -b 19200 -U eeprom:r:verify.hex:i
 fi
 
+DIR_REL_BUILD_PATH=../${fw_file}/build
+if [ ! -e "${DIR_REL_BUILD_PATH}" ]; then
+  mkdir "${DIR_REL_BUILD_PATH}"
+fi
+
 if [ -n "$fw_file" ]; then
+  if [ -n "$flg_recompile" ] || [ ! -e "${DIR_REL_BUILD_PATH}/${fw_file}.ino.with_bootloader.hex" ]; then
+    echo "Compile firmware w/bootloader."
+
+    if [ -e "${DIR_REL_BUILD_PATH}/libraries" ]; then
+      rm -rf "${DIR_REL_BUILD_PATH}/libraries"
+    fi
+    if [ -e "${DIR_REL_BUILD_PATH}/core" ]; then
+      rm -rf "${DIR_REL_BUILD_PATH}/core"
+    fi
+    DIR_ABS_BUILD_PATH=$(cd $DIR_REL_BUILD_PATH && pwd)
+
+    # Compile
+    arduino-builder -dump-prefs ${HARDWARE} ${TOOLS} -built-in-libraries "${DIR_BUILTIN_LIB}" -libraries "${DIR_LIB}" -fqbn="${BOARD_NAME}" -build-path "${DIR_ABS_BUILD_PATH}" -verbose ../${fw_file}/${fw_file}.ino
+    arduino-builder -compile ${HARDWARE} ${TOOLS} -built-in-libraries "${DIR_BUILTIN_LIB}" -libraries "${DIR_LIB}" -fqbn="${BOARD_NAME}" -build-path "${DIR_ABS_BUILD_PATH}" -verbose ../${fw_file}/${fw_file}.ino
+  else
+    echo "Skip firmware compilation."
+  fi
+
   echo "Flash firmware w/bootloader."
 
-  DIR_REL_BUILD_PATH=../${fw_file}/build
-  mkdir ${DIR_REL_BUILD_PATH}
-  DIR_ABS_BUILD_PATH=$(cd $DIR_REL_BUILD_PATH && pwd)
-
-  # Comilpe
-  arduino-builder -dump-prefs ${HARDWARE} ${TOOLS} -built-in-libraries "${DIR_BUILTIN_LIB}" -libraries "${DIR_LIB}" -fqbn="${BOARD_NAME}" -build-path "${DIR_ABS_BUILD_PATH}" -verbose ../${fw_file}/${fw_file}.ino
-  arduino-builder -compile ${HARDWARE} ${TOOLS} -built-in-libraries "${DIR_BUILTIN_LIB}" -libraries "${DIR_LIB}" -fqbn="${BOARD_NAME}" -build-path "${DIR_ABS_BUILD_PATH}" -verbose ../${fw_file}/${fw_file}.ino
-
+  # Preserve EEPROM
+  if [ ! -n "$flg_fuse" ]; then
+    avrdude -C ${DIR_USER2}/arduino/tools/avrdude/6.3.0-arduino9/etc/avrdude.conf -v -p atmega328p -c stk500v1 -P COM${com} -b 19200 -e -Uhfuse:w:0xD2:m
+  fi
   # Flash
   avrdude -C ${DIR_USER2}/arduino/tools/avrdude/6.3.0-arduino9/etc/avrdude.conf -v -p atmega328p -c stk500v1 -P COM${com} -b 19200 -Uflash:w:${DIR_REL_BUILD_PATH}/${fw_file}.ino.with_bootloader.hex:i
 
