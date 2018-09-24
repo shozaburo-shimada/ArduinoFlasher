@@ -121,7 +121,7 @@ fi
 
 if [ -n "$flg_fuse" ]; then
   echo "Write Fuse bit etc."
-  avrdude -C ${DIR_USER2}/arduino/tools/avrdude/6.3.0-arduino9/etc/avrdude.conf -v -p atmega328p -c stk500v1 -P COM${com} -b 19200 -e -Ulock:w:0x3F:m -Uefuse:w:0xFD:m -Uhfuse:w:0xD2:m -Ulfuse:w:0xFF:m
+  avrdude -C ${DIR_USER2}/arduino/tools/avrdude/6.3.0-arduino9/etc/avrdude.conf -F -v -p atmega328p -c stk500v1 -P COM${com} -b 19200 -e -Ulock:w:0x3F:m -Uefuse:w:0xFD:m -Uhfuse:w:0xD2:m -Ulfuse:w:0xFF:m
 
 fi
 
@@ -130,7 +130,7 @@ if [ -n "$uid" ]; then
   # Generate Hex file
   python hex_generator.py $uid
   # Flash unique id to EEPROM
-  avrdude -C ${DIR_USER2}/arduino/tools/avrdude/6.3.0-arduino9/etc/avrdude.conf -v -p atmega328p -c stk500v1 -P COM${com} -b 19200 -U eeprom:w:eeprom.hex:i
+  avrdude -C ${DIR_USER2}/arduino/tools/avrdude/6.3.0-arduino9/etc/avrdude.conf -F -v -p atmega328p -c stk500v1 -P COM${com} -b 19200 -U eeprom:w:eeprom.hex:i
   # Verify
   #echo "Verify the UNIQUE ID."
   #avrdude -C ${DIR_USER2}/arduino/tools/avrdude/6.3.0-arduino9/etc/avrdude.conf -v -p atmega328p -c stk500v1 -P COM${com} -b 19200 -U eeprom:r:verify.hex:i
@@ -164,9 +164,9 @@ if [ -n "$fw_file" ]; then
 
   # Preserve EEPROM
   if [ ! -n "$flg_fuse" ]; then
-    avrdude -C ${DIR_USER2}/arduino/tools/avrdude/6.3.0-arduino9/etc/avrdude.conf -v -p atmega328p -c stk500v1 -P COM${com} -b 19200 -e -Uhfuse:w:0xD2:m
+    avrdude -C ${DIR_USER2}/arduino/tools/avrdude/6.3.0-arduino9/etc/avrdude.conf -F -v -p atmega328p -c stk500v1 -P COM${com} -b 19200 -e -Uhfuse:w:0xD2:m
   fi
   # Flash
-  avrdude -C ${DIR_USER2}/arduino/tools/avrdude/6.3.0-arduino9/etc/avrdude.conf -v -p atmega328p -c stk500v1 -P COM${com} -b 19200 -Uflash:w:${DIR_REL_BUILD_PATH}/${fw_file}.ino.with_bootloader.hex:i
+  avrdude -C ${DIR_USER2}/arduino/tools/avrdude/6.3.0-arduino9/etc/avrdude.conf -F -v -p atmega328p -c stk500v1 -P COM${com} -b 19200 -Uflash:w:${DIR_REL_BUILD_PATH}/${fw_file}.ino.with_bootloader.hex:i
 
 fi
