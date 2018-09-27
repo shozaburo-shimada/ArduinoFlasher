@@ -6,6 +6,7 @@
 from intelhex import IntelHex
 import struct
 import sys
+import os
 
 args = sys.argv
 
@@ -41,5 +42,8 @@ endadd = 1024 # End Address of EEPROM
 
 ih.puts(endadd - 10, struct.pack(fmt, 'M'.encode('ascii'), 'A'.encode('ascii'), 'C'.encode('ascii'), ':'.encode('ascii'), uid[0], uid[1], uid[2], uid[3], uid[4], uid[5])) #.encode()がないとpython 3.xでError
 
+hex_file_name = os.path.join(os.path.dirname(os.path.abspath(__file__)), "eeprom.hex")
+#print("hex_file_name = " + hex_file_name)
+
 ih.dump()
-ih.write_hex_file("eeprom.hex")
+ih.write_hex_file(hex_file_name)
