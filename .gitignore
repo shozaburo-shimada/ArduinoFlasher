@@ -1,0 +1,3 @@
+*.bak
+eeprom.hex
+.vscode/
