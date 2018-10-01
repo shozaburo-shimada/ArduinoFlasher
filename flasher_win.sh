@@ -77,6 +77,7 @@ while(( $# > 0 )); do
             #com port number
             com=($2)
             shift
+            break
             ;;
           'u')
             #unique id
