@@ -5,26 +5,26 @@ VERSION="${PROGNAME} v1.0"
 BASEDIR=$(dirname $0)
 #echo BASEDIR=${BASEDIR}
 
-PORT_PREFIX=COM
+PORT_PREFIX=/dev/
 ISP_DEV_NAME=
 
-DIR_ARDUINO="C:\PROGRA~2\Arduino"
-DIR_USER=${USERPROFILE}\\Documents\\Arduino
-DIR_USER2=${USERPROFILE}\\AppData\\Local\\Arduino15\\packages
+DIR_ARDUINO=/Applications/Arduino.app/Contents/Java
+DIR_USER=${HOME}/Documents/Arduino
+DIR_USER2=
 DIR_CURRENT=${PWD}
-DIR_ARDUINO_BIN=${DIR_ARDUINO}\\hardware\\tools\\avr\\bin
+DIR_ARDUINO_BIN=${DIR_ARDUINO}/hardware/tools/avr/bin
 
-DIR_HARDWARE1=${DIR_ARDUINO}\\hardware
-DIR_HARDWARE2=${DIR_USER}\\hardware
+DIR_HARDWARE1=${DIR_ARDUINO}/hardware
+DIR_HARDWARE2=${DIR_USER}/hardware
 DIR_HARDWARE3=${DIR_USER2}
 
-DIR_TOOLS1=${DIR_ARDUINO}\\tools-builder
-DIR_TOOLS2=${DIR_ARDUINO}\\hardware\\tools\\avr
+DIR_TOOLS1=${DIR_ARDUINO}/tools-builder
+DIR_TOOLS2=${DIR_ARDUINO}/hardware/tools/avr
 DIR_TOOLS3=${DIR_USER2}
 
-DIR_BUILTIN_LIB=${DIR_ARDUINO}\\libraries
-DIR_LIB=${DIR_USER}\\libraries
-DIR_CONF=${DIR_USER2}/arduino/tools/avrdude/6.3.0-arduino9/etc
+DIR_BUILTIN_LIB=${DIR_ARDUINO}/libraries
+DIR_LIB=${DIR_USER}/libraries
+DIR_CONF=${DIR_ARDUINO}/hardware/tools/avr/etc
 
 DIR_INO_ROOT=..
 DIR_BUILD=build
