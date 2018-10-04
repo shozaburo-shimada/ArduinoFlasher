@@ -1,16 +1,19 @@
 #!/bin/bash
 
 PROGNAME=$(basename $0)
-VERSION="${PROGNAME} v1.0"
+VERSION="${PROGNAME} v1.1"
+echo
+echo ${VERSION}
+echo
 BASEDIR=$(dirname $0)
 #echo BASEDIR=${BASEDIR}
 
 PORT_PREFIX=/dev/
-ISP_DEV_NAME=
+ISP_DEV_NAME=`ls -1 /dev/ | grep cu.wchusbserial`
 
 DIR_ARDUINO=/Applications/Arduino.app/Contents/Java
 DIR_USER=${HOME}/Documents/Arduino
-DIR_USER2=
+DIR_USER2=${HOME}/Library/Arduino15/packages
 DIR_CURRENT=${PWD}
 DIR_ARDUINO_BIN=${DIR_ARDUINO}/hardware/tools/avr/bin
 
@@ -25,12 +28,17 @@ DIR_TOOLS3=${DIR_USER2}
 DIR_BUILTIN_LIB=${DIR_ARDUINO}/libraries
 DIR_LIB=${DIR_USER}/libraries
 DIR_CONF=${DIR_ARDUINO}/hardware/tools/avr/etc
+CONF1_FILE=${DIR_ARDUINO}/hardware/tools/avr/etc/avrdude.conf
+CONF2_FILE=${DIR_USER2}/pololu-a-star/hardware/avr/4.0.2/extra_avrdude.conf
 
 DIR_INO_ROOT=..
 DIR_BUILD=build
 
 FW_HEX_SUFFIX="ino.with_bootloader.hex"
-BOARD_NAME="arduino:avr:vivi:cpu=8MHzatmega328"
+BOARD_328P_NAME="arduino:avr:vivi:cpu=8MHzatmega328"
+BOARD_328PB_NAME="pololu-a-star:avr:a-star328PB:version=8mhz"
+DEFAULT_MICRO=328p
+MICRO_OPTION="328p or 328pb"
 
 HARDWARE="-hardware "${DIR_HARDWARE1}
 
@@ -54,7 +62,27 @@ fi
 
 export PATH="${DIR_ARDUINO_BIN}:${DIR_ARDUINO}:$PATH"
 
+function Usage() {
+  echo 
+  echo "Usage: ${PROGNAME} [Options]"
+  echo 
+  echo "Option: -p option must be required"
+  echo "  -h                         Help"
+  echo "  -p <port number or name>   Port number or name to Arduino ISP"
+  echo "  -b                         Set fuse bit"
+  echo "  -u <max 6byte, hex>        Write 6byte unique id to EEPROM"
+  echo "  -f <sketch name>           Flash firmware w/ arduino bootloader"
+  echo "  -r                         Force recompile (also require -f option)"
+  echo "  -m <mcu_name>              Specify the target MCU ${MICRO_OPTION}"
+  echo "  -F                         Force flash in avrdude even if device signature is invalid"
+  echo
+  exit 1
+}
 
+
+if [ $# = 0 ]; then
+  Usage
+fi
 
 while(( $# > 0 )); do
   case "$1" in
@@ -74,16 +102,17 @@ while(( $# > 0 )); do
         opt_name="${1:$i:1}"; # ${変数:offset:length}
         case "$opt_name" in
           'h')
-            #help
+            # help
+            Usage
             ;;
           'p')
-            #com port number
+            # com port number
             com=($2)
             shift
             break
             ;;
           'u')
-            #unique id
+            # unique id
             uid=("$2")
             if [ ${#uid} -lt 2 ] || [ ${#uid} -gt 12 ]; then
               echo "-u: Invalid argument"
@@ -94,16 +123,34 @@ while(( $# > 0 )); do
             break
             ;;
           'b')
-            #Fuse bit, Lock bit etc.
+            # Fuse bit, Lock bit etc.
             flg_fuse=1
+            break
             ;;
           'r')
-            #Recompile
+            # Recompile
             flg_recompile=1
+            break
+            ;;
+          'F')
+            # avrdude -F
+            FORCE_OPTION="-F"
+            break
             ;;
           'f')
-            #firmware
+            # firmware
             FW_ARG=("$2")
+            shift
+            break
+            ;;
+          'm')
+            # mcu must need an arg
+            if [[ -z "$2" ]] || [[ "$2" =~ ^-+ ]]; then
+              echo "${PROGNAME}: -$1 option requires an argument"
+              echo "Provide ${MICRO_OPTION}"
+              exit
+            fi
+            MCU_ARG=("$2")
             shift
             break
             ;;
@@ -111,10 +158,38 @@ while(( $# > 0 )); do
         done
       ;;
 
-    * ) echo "$1"
+    * ) 
+      echo "Unknown argument $1"
+      Usage
   esac
   shift
 done
+
+# Verify ${MCU_ARG} and define ${BOARD_NAME}, ${CONF_OPTION}, ${MCU_LOWER}, ${MCU_UPPER}
+if [ ! -n "${MCU_ARG}" ]; then
+  # If not provide -m option, use ${DEFAULT_MICRO}
+  MCU_TYPE=${DEFAULT_MICRO}
+else
+  MCU_TYPE=${MCU_ARG}
+fi
+MCU_LOWER=`echo ${MCU_TYPE} | tr '[A-Z]' '[a-z]'`
+MCU_UPPER=`echo ${MCU_TYPE} | tr '[a-z]' '[A-Z]'`
+if [ "${MCU_UPPER}" = "328P" ]; then
+  BOARD_NAME=${BOARD_328P_NAME}
+  CONF_OPTION="-C ${CONF1_FILE}"
+elif [ "${MCU_UPPER}" = "328PB" ]; then
+  BOARD_NAME=${BOARD_328PB_NAME}
+  CONF_OPTION="-C ${CONF1_FILE} -C +${CONF2_FILE}"
+else
+  echo "Cannot recognize -m argument ${MCU_ARG}"
+  echo "Provide ${MICRO_OPTION}"
+  exit
+fi
+#echo "MCU_ARG=${MCU_ARG}"
+#echo "BOARD_NAME=${BOARD_NAME}"
+#echo "CONF_OPTION=${CONF_OPTION}"
+#echo "MCU_LOWER=${MCU_LOWER}"
+#echo "MCU_UPPER=${MCU_UPPER}"
 
 # Analysis ${FW_ARG} and create ${INO_DIR_NAME}, ${REL_HEX_FILE} and ${REL_INO_FILE}
 if [ -n "${FW_ARG}" ]; then
@@ -166,10 +241,12 @@ fi
 (IFS="/"; cat <<_EOS_
 
 -----------------------------
-PORT    : ${PORT_PREFIX}${com}
-UID     : $uid
-FIRMWARE: $INO_DIR_NAME
-FUSE    : $flg_fuse
+MCU      : ${MCU_UPPER}
+OPTION-F : ${FORCE_OPTION}
+PORT     : ${PORT_PREFIX}${com}
+UID      : $uid
+FIRMWARE : $INO_DIR_NAME
+FUSE     : $flg_fuse
 -----------------------------
 
 _EOS_
@@ -182,20 +259,22 @@ if [ -z "$com" ]; then
 fi
 
 if [ -n "$flg_fuse" ]; then
-  echo "Write Fuse bit etc."
-  avrdude -C ${DIR_CONF}/avrdude.conf -F -v -p atmega328p -c stk500v1 -P ${PORT_PREFIX}${com} -b 19200 -e -Ulock:w:0x3F:m -Uefuse:w:0xFD:m -Uhfuse:w:0xD2:m -Ulfuse:w:0xFF:m
+  echo "Write Fuse bit etc to ATmega${MCU_UPPER}."
+  #echo avrdude ${CONF_OPTION} ${FORCE_OPTION} -v -p atmega${MCU_LOWER} -c stk500v1 -P ${PORT_PREFIX}${com} -b 19200 -e -Ulock:w:0x3F:m -Uefuse:w:0xFD:m -Uhfuse:w:0xD2:m -Ulfuse:w:0xFF:m
+  avrdude ${CONF_OPTION} ${FORCE_OPTION} -v -p atmega${MCU_LOWER} -c stk500v1 -P ${PORT_PREFIX}${com} -b 19200 -e -Ulock:w:0x3F:m -Uefuse:w:0xFD:m -Uhfuse:w:0xD2:m -Ulfuse:w:0xFF:m
 
 fi
 
 if [ -n "$uid" ]; then
-  echo "Write UNIQUE ID to EEPROM."
+  echo "Write UNIQUE ID to EEPROM to ATmega${MCU_UPPER}."
   # Generate Hex file
   python ${BASEDIR}/hex_generator.py $uid
   # Flash unique id to EEPROM
-  avrdude -C ${DIR_CONF}/avrdude.conf -F -v -p atmega328p -c stk500v1 -P ${PORT_PREFIX}${com} -b 19200 -U eeprom:w:${BASEDIR}/eeprom.hex:i
+  #echo avrdude ${CONF_OPTION} ${FORCE_OPTION} -v -p atmega${MCU_LOWER} -c stk500v1 -P ${PORT_PREFIX}${com} -b 19200 -U eeprom:w:${BASEDIR}/eeprom.hex:i
+  avrdude ${CONF_OPTION} ${FORCE_OPTION} -v -p atmega${MCU_LOWER} -c stk500v1 -P ${PORT_PREFIX}${com} -b 19200 -U eeprom:w:${BASEDIR}/eeprom.hex:i
   # Verify
   #echo "Verify the UNIQUE ID."
-  #avrdude -C ${DIR_CONF}/avrdude.conf -v -p atmega328p -c stk500v1 -P ${PORT_PREFIX}${com} -b 19200 -U eeprom:r:verify.hex:i
+  #avrdude ${CONF_OPTION} -v -p atmega${MCU_LOWER} -c stk500v1 -P ${PORT_PREFIX}${com} -b 19200 -U eeprom:r:verify.hex:i
 fi
 
 DIR_INO_PATH=${DIR_INO_ROOT}/${INO_DIR_NAME}
@@ -206,7 +285,7 @@ fi
 
 if [ -n "${FW_ARG}" ]; then
   if [ -n "$flg_recompile" ] || [ ! -e "${REL_HEX_FILE}" ]; then
-    echo "Compile firmware w/bootloader."
+    echo "Compile firmware w/bootloader for ATmega${MCU_UPPER}."
 
     if [ -e "${DIR_REL_BUILD_PATH}/libraries" ]; then
       rm -r "${DIR_REL_BUILD_PATH}/libraries"
@@ -217,19 +296,23 @@ if [ -n "${FW_ARG}" ]; then
     DIR_ABS_BUILD_PATH=$(cd $DIR_REL_BUILD_PATH && pwd)
 
     # Compile
+    #echo arduino-builder -dump-prefs ${HARDWARE} ${TOOLS} -built-in-libraries "${DIR_BUILTIN_LIB}" -libraries "${DIR_LIB}" -fqbn="${BOARD_NAME}" -build-path "${DIR_ABS_BUILD_PATH}" -verbose ${DIR_INO_PATH}/${INO_DIR_NAME}.ino
     arduino-builder -dump-prefs ${HARDWARE} ${TOOLS} -built-in-libraries "${DIR_BUILTIN_LIB}" -libraries "${DIR_LIB}" -fqbn="${BOARD_NAME}" -build-path "${DIR_ABS_BUILD_PATH}" -verbose ${DIR_INO_PATH}/${INO_DIR_NAME}.ino
+    #echo arduino-builder -compile ${HARDWARE} ${TOOLS} -built-in-libraries "${DIR_BUILTIN_LIB}" -libraries "${DIR_LIB}" -fqbn="${BOARD_NAME}" -build-path "${DIR_ABS_BUILD_PATH}" -verbose ${DIR_INO_PATH}/${INO_DIR_NAME}.ino
     arduino-builder -compile ${HARDWARE} ${TOOLS} -built-in-libraries "${DIR_BUILTIN_LIB}" -libraries "${DIR_LIB}" -fqbn="${BOARD_NAME}" -build-path "${DIR_ABS_BUILD_PATH}" -verbose ${DIR_INO_PATH}/${INO_DIR_NAME}.ino
   else
     echo "Skip firmware compilation."
   fi
 
-  echo "Flash firmware w/bootloader."
+  echo "Flash firmware w/bootloader to ATmega${MCU_UPPER}."
 
   # Preserve EEPROM
   if [ ! -n "$flg_fuse" ]; then
-    avrdude -C ${DIR_CONF}/avrdude.conf -F -v -p atmega328p -c stk500v1 -P ${PORT_PREFIX}${com} -b 19200 -e -Uhfuse:w:0xD2:m
+    #echo avrdude ${CONF_OPTION} ${FORCE_OPTION} -v -p atmega${MCU_LOWER} -c stk500v1 -P ${PORT_PREFIX}${com} -b 19200 -e -Uhfuse:w:0xD2:m
+    avrdude ${CONF_OPTION} ${FORCE_OPTION} -v -p atmega${MCU_LOWER} -c stk500v1 -P ${PORT_PREFIX}${com} -b 19200 -e -Uhfuse:w:0xD2:m
   fi
   # Flash
-  avrdude -C ${DIR_CONF}/avrdude.conf -F -v -p atmega328p -c stk500v1 -P ${PORT_PREFIX}${com} -b 19200 -Uflash:w:${DIR_REL_BUILD_PATH}/${INO_DIR_NAME}.${FW_HEX_SUFFIX}:i
+  #echo avrdude ${CONF_OPTION} ${FORCE_OPTION} -v -p atmega${MCU_LOWER} -c stk500v1 -P ${PORT_PREFIX}${com} -b 19200 -Uflash:w:${DIR_REL_BUILD_PATH}/${INO_DIR_NAME}.${FW_HEX_SUFFIX}:i
+  avrdude ${CONF_OPTION} ${FORCE_OPTION} -v -p atmega${MCU_LOWER} -c stk500v1 -P ${PORT_PREFIX}${com} -b 19200 -Uflash:w:${DIR_REL_BUILD_PATH}/${INO_DIR_NAME}.${FW_HEX_SUFFIX}:i
 
 fi

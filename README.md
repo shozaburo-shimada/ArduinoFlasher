@@ -55,12 +55,17 @@ ParentFolder<br>
 
 ## Command
 - Option
-
--p \<port number or name>: COM port number or name to Arduino ISP<br>
--b : set fuse bit<br>
--u <max 6byte, hex>: write 6byte unique id to EEPROM<br>
--f \<sketch name>: flash firmware w/ arduino bootloader<br>
--r : Force recompile (also require -f option)<br>
+-p option must be required
+```
+  -h                         Help
+  -p <port number or name>   Port number or name to Arduino ISP
+  -b                         Set fuse bit
+  -u <max 6byte, hex>        Write 6byte unique id to EEPROM
+  -f <sketch name>           Flash firmware w/ arduino bootloader
+  -r                         Force recompile (also require -f option)
+  -m <mcu_name>              Specify the target MCU 328p or 328pb
+  -F                         Force flash in avrdude even if device signature is invalid
+```
 
 - For example, move flasher folder using "cd" and then...
 
